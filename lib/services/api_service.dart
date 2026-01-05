@@ -23,7 +23,7 @@ class ApiService {
     bool forceClear = false,
   }) async {
     final uri = Uri.parse('$baseUrl/api/pages');
-    final _previous = List<PageItem>.from(pages.value);
+    final previous = List<PageItem>.from(pages.value);
     if (forceClear) pages.value = [];
     isWorking.value = true;
     try {
@@ -47,7 +47,7 @@ class ApiService {
             return true;
           } else {
             // Empty list returned: keep previous pages (offline-first)
-            if (_previous.isEmpty) {
+            if (previous.isEmpty) {
               // there are no previous pages either -> show empty state
               fetchStatus.value = FetchStatus.empty;
             } else {
