@@ -129,7 +129,7 @@ class WebViewCarrierState extends State<WebViewCarrier> {
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         // Title should just show WebView
-        title: const Text('WebView', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        // title: const Text('WebView', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
         actions: [
           // pages dropdown
           ValueListenableBuilder<FetchStatus>(
@@ -178,7 +178,7 @@ class WebViewCarrierState extends State<WebViewCarrier> {
                               child: Text(p.description, style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
                             );
                           }).toList(),
-                          // Render the closed button's selected label in white so it's visible on the AppBar.
+                          // Render the closed button's selected label in white so it's visible on theAppBar.
                           // Use a simple Container (no Expanded/Flexible) to avoid layout issues.
                           selectedItemBuilder: (context) {
                             return pages.map((p) {
@@ -233,17 +233,48 @@ class WebViewCarrierState extends State<WebViewCarrier> {
                 onPressed: loading
                     ? null
                     : () async {
-                        // force fetch and update fetchStatus
-                        final success = await ApiService.instance.fetchPages(
+                        // fetch pages
+                        await ApiService.instance.fetchPages(
                           baseUrl: baseUrl,
                           totpCode: TotpService.instance.getCode(),
                         );
 
-                        // if fetch succeeded and there were pages, pick first if nothing selected
+                        // After fetch (whether success or not), ensure the webview shows the selected page
                         final pages = ApiService.instance.pages.value;
-                        if (success && pages.isNotEmpty && selected == null) {
-                          setState(() => selected = pages.first);
-                          controller.loadRequest(Uri.parse(selected!.url));
+
+                        if (selected == null) {
+                          if (pages.isNotEmpty) {
+                            // pick the first if nothing selected
+                            setState(() => selected = pages.first);
+                            if (selected!.url.isNotEmpty) {
+                              controller.loadRequest(Uri.parse(selected!.url));
+                            }
+                          }
+                        } else {
+                          // try to find the matching instance in the current pages list
+                          final matched = pages.firstWhere(
+                            (p) => p.url == selected!.url,
+                            orElse: () => selected!,
+                          );
+                          if (!identical(matched, selected)) {
+                            setState(() => selected = matched);
+                          }
+
+                          // reload or load the currently selected page
+                          if (selected != null && selected!.url.isNotEmpty) {
+                            try {
+                              final current = await controller.currentUrl();
+                              if (current != null && current == selected!.url) {
+                                // same URL is already loaded => reload to refresh content
+                                await controller.reload();
+                              } else {
+                                await controller.loadRequest(Uri.parse(selected!.url));
+                              }
+                            } catch (_) {
+                              // best-effort: fall back to loadRequest if reload/currentUrl not available
+                              await controller.loadRequest(Uri.parse(selected!.url));
+                            }
+                          }
                         }
                       },
               );
